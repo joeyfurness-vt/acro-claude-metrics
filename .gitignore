@@ -9,6 +9,8 @@ test-fixtures/*/node_modules/
 test-fixtures/*/.venv/
 test-fixtures/*/tools/prometheus-agent/prometheus
 test-fixtures/*/tools/prometheus-agent/data/
+test-fixtures/*/tools/prometheus-agent/*.tar.gz
+test-fixtures/*/tools/prometheus-agent/prometheus-*/
 .idea/
 .vscode/
 *.swp
