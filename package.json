@@ -1,0 +1,14 @@
+{
+  "name": "acro-claude-metrics",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Internal helpers for the acro-claude-metrics Claude Code plugin",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/",
+    "lint:skills": "node scripts/lint-skills.mjs"
+  },
+  "devDependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

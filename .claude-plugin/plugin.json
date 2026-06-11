@@ -1,0 +1,21 @@
+{
+  "name": "acro-claude-metrics",
+  "description": "Bootstrap production-ready Prometheus metrics on Node, browser, Python, and TouchDesigner projects — designed for teams new to observability.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Joey Furness",
+    "email": "joeyfurness@vtprodesign.com"
+  },
+  "homepage": "https://github.com/joeyfurness-vt/acro-claude-metrics",
+  "repository": "https://github.com/joeyfurness-vt/acro-claude-metrics",
+  "license": "MIT",
+  "keywords": [
+    "prometheus",
+    "metrics",
+    "observability",
+    "remote-write",
+    "grafana",
+    "touchdesigner",
+    "claude-code"
+  ]
+}

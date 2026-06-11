@@ -1,0 +1,20 @@
+{
+  "name": "acro-claude-metrics-dev",
+  "description": "Development marketplace for acro-claude-metrics plugin",
+  "owner": {
+    "name": "Joey Furness",
+    "email": "joeyfurness@vtprodesign.com"
+  },
+  "plugins": [
+    {
+      "name": "acro-claude-metrics",
+      "description": "Bootstrap Prometheus metrics across Node, browser, Python, and TouchDesigner.",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "Joey Furness",
+        "email": "joeyfurness@vtprodesign.com"
+      }
+    }
+  ]
+}
