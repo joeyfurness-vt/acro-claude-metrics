@@ -1,0 +1,30 @@
+// Mounts a /internal/metrics-verify-bump?ts=<unix> route used by
+// scripts/verify/check-roundtrip.mjs. Updates a single gauge so that the
+// round-trip check has something to query back.
+//
+// SECURITY: This route should not be reachable from outside the host.
+// The integration skill warns if the app binds to 0.0.0.0; if it does,
+// add an `if (req.ip !== '127.0.0.1') return res.status(403).end();` guard
+// or expose this on a separate localhost-only listener.
+
+import type { Request, Response, Express } from 'express';
+import { Gauge } from 'prom-client';
+import { register } from './index.js';
+
+const verifyGauge = new Gauge({
+  name: 'bootstrap_verify_ts',
+  help: 'Updated by check-roundtrip.mjs to test end-to-end ingestion.',
+  registers: [register],
+});
+
+export function mountVerifyBump(app: Express): void {
+  app.post('/internal/metrics-verify-bump', (req: Request, res: Response) => {
+    const ts = Number(req.query.ts);
+    if (!Number.isFinite(ts)) {
+      res.status(400).send('ts query param required');
+      return;
+    }
+    verifyGauge.set(ts);
+    res.status(204).end();
+  });
+}

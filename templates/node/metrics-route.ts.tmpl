@@ -1,0 +1,16 @@
+// Mount on your existing Express / Fastify / http server.
+// For Express:
+//   import express from 'express';
+//   import { register } from './metrics/index.js';
+//   import { metricsHandler } from './metrics/route.js';
+//   app.get('/metrics', metricsHandler);
+//
+// The Content-Type comes from prom-client's register.contentType (text/plain; version=0.0.4).
+
+import type { Request, Response } from 'express';
+import { register } from './index.js';
+
+export async function metricsHandler(_req: Request, res: Response): Promise<void> {
+  res.setHeader('Content-Type', register.contentType);
+  res.end(await register.metrics());
+}
