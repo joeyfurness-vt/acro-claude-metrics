@@ -1,0 +1,90 @@
+"""MetricsExt — TouchDesigner COMP extension wrapping prometheus_client.
+
+Attach to a Container COMP. That same COMP carries the custom parameters
+(Metricsport, Project, Env, Installationid, Appversion, Gitsha, Vendorpath).
+The extension reads them at init and starts an HTTP server thread.
+
+CARDINALITY WARNING:
+Labels MUST be a small known set (enums). Never label with op_path, par_name,
+asset filename, frame index, or anything that varies per-tick — this will OOM
+the local Prometheus agent within minutes.
+
+If pip-install of prometheus_client is unavailable in your TD's Python, vendor
+the package into a folder and set the Vendorpath parameter to point at it.
+"""
+import os
+import sys
+import time
+
+# Histogram instances live in a separate dict from counters/gauges to avoid
+# name collisions if a project ever has a histogram and a counter sharing a name.
+_COUNTER_GAUGE = {}
+_HISTOGRAM = {}
+
+
+class MetricsExt:
+    def __init__(self, ownerComp):
+        self.ownerComp = ownerComp
+        self._started = False
+
+        # Vendored-package fallback. Skill writes the path here when pip is unavailable.
+        vendor = ownerComp.par.Vendorpath.eval() if hasattr(ownerComp.par, 'Vendorpath') else ''
+        if vendor and os.path.isdir(vendor) and vendor not in sys.path:
+            sys.path.insert(0, vendor)
+
+        from prometheus_client import Counter, Gauge, Histogram, start_http_server
+        self._Counter, self._Gauge, self._Histogram = Counter, Gauge, Histogram
+
+        # Build info — always 1; labels carry version + git SHA.
+        Gauge('${APP_PREFIX}_build_info', 'Build info (always 1).', ['version', 'git_sha']).labels(
+            version=ownerComp.par.Appversion.eval() or 'unknown',
+            git_sha=ownerComp.par.Gitsha.eval() or 'unknown',
+        ).set(1)
+
+        # Health gauge — verify script checks this to confirm the extension is firing.
+        self._flush_ts = Gauge('td_metrics_flush_ts', 'Last extension tick timestamp (unix seconds).')
+
+        port = int(ownerComp.par.Metricsport.eval() or 9100)
+        try:
+            start_http_server(port)
+            self._started = True
+            debug(f'MetricsExt: serving /metrics on :{port}')
+        except OSError as e:
+            debug(f'MetricsExt: could not bind :{port} ({e}); metrics disabled')
+
+    # --- public API ---
+
+    def Counter(self, name: str, help_: str, label_names=()):
+        return _COUNTER_GAUGE.setdefault(name, self._Counter(name, help_, label_names))
+
+    def Gauge(self, name: str, help_: str, label_names=()):
+        return _COUNTER_GAUGE.setdefault(name, self._Gauge(name, help_, label_names))
+
+    def Histogram(self, name: str, help_: str, label_names=(), buckets=None):
+        if name in _HISTOGRAM:
+            return _HISTOGRAM[name]
+        h = self._Histogram(name, help_, label_names, buckets=buckets) if buckets else self._Histogram(name, help_, label_names)
+        _HISTOGRAM[name] = h
+        return h
+
+    def Incr(self, name: str, labels: dict | None = None, by: float = 1.0):
+        m = _COUNTER_GAUGE.get(name)
+        if m is None:
+            return
+        (m.labels(**labels) if labels else m).inc(by)
+
+    def Set(self, name: str, labels: dict | None = None, value: float = 0):
+        m = _COUNTER_GAUGE.get(name)
+        if m is None:
+            return
+        (m.labels(**labels) if labels else m).set(value)
+
+    def Observe(self, name: str, labels: dict | None = None, value: float = 0):
+        m = _HISTOGRAM.get(name)
+        if m is None:
+            return
+        (m.labels(**labels) if labels else m).observe(value)
+
+    def OnTick(self):
+        """Called by a Timer CHOP every N seconds. Updates the health gauge."""
+        self._flush_ts.set(time.time())
