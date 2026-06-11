@@ -5,7 +5,7 @@
   "description": "Internal helpers for the acro-claude-metrics Claude Code plugin",
   "type": "module",
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test tests/*.test.mjs && bash tests/platform-detect.test.sh",
     "lint:skills": "node scripts/lint-skills.mjs"
   },
   "devDependencies": {
