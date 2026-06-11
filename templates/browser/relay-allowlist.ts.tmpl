@@ -1,0 +1,29 @@
+// Server-side allowlist for browser-pushed metrics. EVERY browser-emitted
+// metric must be declared here, with EVERY allowed label value enumerated.
+// Unknown metrics, unknown label keys, and unknown label values are dropped.
+//
+// This is the single defense against cardinality explosion from the browser.
+// Do not relax it.
+
+export type RelayMetricSpec = {
+  name: string;
+  type: 'counter' | 'gauge' | 'histogram';
+  help: string;
+  labels: Record<string, readonly string[]>;
+  buckets?: number[];
+};
+
+export const RELAY_ALLOWLIST: RelayMetricSpec[] = [
+  // Example — replace with the browser-emitted metrics from docs/metrics/metrics-plan.md.
+  // Browser-emitted metrics in the plan should be tagged "(browser)" in the "Where" field.
+  //
+  // {
+  //   name: 'summit_browser_action_total',
+  //   type: 'counter',
+  //   help: 'User-initiated browser actions.',
+  //   labels: {
+  //     action: ['click_start', 'click_continue', 'tap_card'] as const,
+  //     archetype: ['deep-diver', 'pivoter', 'visionary'] as const,
+  //   },
+  // },
+];

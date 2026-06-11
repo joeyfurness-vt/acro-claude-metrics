@@ -1,0 +1,65 @@
+// In-browser metrics client. Batches updates and flushes via fetch / sendBeacon
+// to the Node server's /internal/metrics-relay route.
+//
+// Allowed metric names and labels are validated server-side; this client
+// must use names and label values registered in src/metrics/relay-allowlist.ts.
+
+const RELAY_URL = '/internal/metrics-relay';
+const FLUSH_INTERVAL_MS = 5000;
+const FLUSH_BATCH_LIMIT = 100;
+
+type Sample = {
+  metric: string;
+  type: 'counter' | 'gauge' | 'histogram';
+  labels: Record<string, string>;
+  value: number;
+};
+
+let buffer: Sample[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleFlush(): void {
+  if (flushTimer) return;
+  flushTimer = setTimeout(flush, FLUSH_INTERVAL_MS);
+}
+
+function push(sample: Sample): void {
+  buffer.push(sample);
+  if (buffer.length >= FLUSH_BATCH_LIMIT) flush();
+  else scheduleFlush();
+}
+
+export function flush(): void {
+  if (buffer.length === 0) return;
+  const payload = JSON.stringify(buffer);
+  buffer = [];
+  if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+
+  // Prefer sendBeacon on page-hide for delivery without blocking nav.
+  if (document.visibilityState === 'hidden' && 'sendBeacon' in navigator) {
+    navigator.sendBeacon(RELAY_URL, new Blob([payload], { type: 'application/json' }));
+  } else {
+    fetch(RELAY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+      keepalive: true,
+    }).catch(() => { /* swallow — metrics are best-effort */ });
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') flush();
+});
+
+export function incr(metric: string, labels: Record<string, string> = {}, by = 1): void {
+  push({ metric, type: 'counter', labels, value: by });
+}
+
+export function set(metric: string, value: number, labels: Record<string, string> = {}): void {
+  push({ metric, type: 'gauge', labels, value });
+}
+
+export function observe(metric: string, value: number, labels: Record<string, string> = {}): void {
+  push({ metric, type: 'histogram', labels, value });
+}

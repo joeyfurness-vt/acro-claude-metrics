@@ -1,0 +1,71 @@
+// Server-side relay endpoint. Validates incoming browser samples against
+// a strict allowlist BEFORE updating the server's prom-client registry —
+// without the allowlist, a browser can inject arbitrary label values and
+// blow up cardinality.
+
+import type { Express, Request, Response } from 'express';
+import { Counter, Gauge, Histogram, register } from 'prom-client';
+import { RELAY_ALLOWLIST, type RelayMetricSpec } from './relay-allowlist.js';
+
+// Build prom-client metrics from the allowlist at startup so they exist
+// with zero values before any browser pushes (Zen #4: avoid missing metrics).
+const instruments = new Map<string, Counter<string> | Gauge<string> | Histogram<string>>();
+for (const spec of RELAY_ALLOWLIST) {
+  const labelNames = Object.keys(spec.labels);
+  let m: Counter<string> | Gauge<string> | Histogram<string>;
+  switch (spec.type) {
+    case 'counter':
+      m = new Counter({ name: spec.name, help: spec.help, labelNames, registers: [register] });
+      break;
+    case 'gauge':
+      m = new Gauge({ name: spec.name, help: spec.help, labelNames, registers: [register] });
+      break;
+    case 'histogram':
+      m = new Histogram({
+        name: spec.name,
+        help: spec.help,
+        labelNames,
+        buckets: spec.buckets ?? [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+        registers: [register],
+      });
+      break;
+  }
+  instruments.set(spec.name, m);
+}
+
+const allowlistByName = new Map<string, RelayMetricSpec>();
+for (const s of RELAY_ALLOWLIST) allowlistByName.set(s.name, s);
+
+function validate(sample: { metric: string; type: string; labels: Record<string, string>; value: number }): string | null {
+  const spec = allowlistByName.get(sample.metric);
+  if (!spec) return `unknown metric: ${sample.metric}`;
+  if (spec.type !== sample.type) return `metric ${sample.metric} expects type=${spec.type}, got ${sample.type}`;
+  for (const [k, v] of Object.entries(sample.labels)) {
+    const allowed = spec.labels[k];
+    if (!allowed) return `label ${k} not allowed on ${sample.metric}`;
+    if (!allowed.includes(v)) return `label ${k}=${v} not in allowed values for ${sample.metric}`;
+  }
+  if (typeof sample.value !== 'number' || !Number.isFinite(sample.value)) return `invalid value: ${sample.value}`;
+  return null;
+}
+
+export function mountMetricsRelay(app: Express): void {
+  app.post('/internal/metrics-relay', (req: Request, res: Response) => {
+    const samples = Array.isArray(req.body) ? req.body : [];
+    let accepted = 0;
+    for (const s of samples) {
+      const err = validate(s);
+      if (err) {
+        // Silent reject — do not echo back labels, do not log per-sample (log volume).
+        continue;
+      }
+      const m = instruments.get(s.metric)!;
+      const labels = s.labels;
+      if (s.type === 'counter') (m as Counter<string>).inc(labels, s.value);
+      else if (s.type === 'gauge') (m as Gauge<string>).set(labels, s.value);
+      else if (s.type === 'histogram') (m as Histogram<string>).observe(labels, s.value);
+      accepted++;
+    }
+    res.status(204).end();
+  });
+}
