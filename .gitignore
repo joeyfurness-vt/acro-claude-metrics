@@ -14,3 +14,4 @@ test-fixtures/*/tools/prometheus-agent/prometheus-*/
 .idea/
 .vscode/
 *.swp
+__pycache__/

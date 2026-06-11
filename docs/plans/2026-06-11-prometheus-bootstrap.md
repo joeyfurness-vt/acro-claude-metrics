@@ -369,7 +369,7 @@ description: Use when doing X to accomplish Y.
 # Example
 Body.
 `;
-  const result = lintSkill('example/SKILL.md', content);
+  const result = lintSkill('skills/example-skill/SKILL.md', content);
   assert.deepEqual(result.errors, []);
 });
 
