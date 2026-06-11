@@ -1,0 +1,14 @@
+{
+  "type": "timeseries",
+  "title": "${PANEL_TITLE}",
+  "targets": [
+    { "expr": "${QUERY}", "legendFormat": "${LEGEND}", "refId": "A" }
+  ],
+  "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+  "fieldConfig": {
+    "defaults": {
+      "unit": "${UNIT}",
+      "custom": { "drawStyle": "line", "lineInterpolation": "linear" }
+    }
+  }
+}
