@@ -43,3 +43,18 @@ name: example
   const result = lintSkill('skills/example/SKILL.md', content);
   assert.ok(result.errors.some(e => e.includes('description')));
 });
+
+test('flags missing frontmatter entirely', () => {
+  const result = lintSkill('skills/example/SKILL.md', '# No frontmatter here\nBody only.\n');
+  assert.ok(result.errors.some(e => e.includes('missing YAML frontmatter')));
+});
+
+test('flags invalid YAML inside frontmatter', () => {
+  const content = `---
+name: [unclosed
+description: x
+---
+`;
+  const result = lintSkill('skills/example/SKILL.md', content);
+  assert.ok(result.errors.some(e => e.includes('invalid YAML')));
+});
