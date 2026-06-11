@@ -1,0 +1,32 @@
+"""Mount on Flask / FastAPI / etc. Mirrors templates/node/verify-bump-route.ts.tmpl.
+
+Pick the variant matching your framework and copy it into your app code.
+
+# Flask
+#   from .metrics import BOOTSTRAP_VERIFY_TS
+#   from flask import Flask, request
+#
+#   app = Flask(__name__)
+#
+#   @app.post('/internal/metrics-verify-bump')
+#   def metrics_verify_bump():
+#       ts = float(request.args.get('ts', 0))
+#       if not ts:
+#           return ('ts query param required', 400)
+#       BOOTSTRAP_VERIFY_TS.set(ts)
+#       return ('', 204)
+
+# FastAPI
+#   from fastapi import FastAPI, Query, Response
+#   from .metrics import BOOTSTRAP_VERIFY_TS
+#
+#   app = FastAPI()
+#
+#   @app.post('/internal/metrics-verify-bump')
+#   def metrics_verify_bump(ts: float = Query(...)):
+#       BOOTSTRAP_VERIFY_TS.set(ts)
+#       return Response(status_code=204)
+
+# Pure script / CLI — no HTTP server to mount onto. Skip verify-bump entirely;
+# round-trip check doesn't apply. Use _last_run_timestamp_seconds gauges instead.
+"""
